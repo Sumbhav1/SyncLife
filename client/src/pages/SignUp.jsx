@@ -1,8 +1,9 @@
 import React from "react";
 import SyncLife from "../assets/images/SyncLife.png";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import axios from "axios";
+import api from "../api";
+import { useAuth } from "../components/AuthContext";
 
 const SignUp = () => {
   const [name, setName] = useState("");
@@ -11,6 +12,7 @@ const SignUp = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const isValidPassword = (password) => {
     return (
@@ -21,7 +23,6 @@ const SignUp = () => {
     );
   };
   const handleSignUp = async (e) => {
-    setError("");
     e.preventDefault();
     setError("");
 
@@ -41,23 +42,15 @@ const SignUp = () => {
       return;
     }
     try {
-      const response = await axios.post("http://localhost:5001/auth/signup", {
-        name,
-        email,
-        password,
-      });
-
-      console.log(response);
-
-      if (response.status == 201) {
-        console.log("signup succesfull");
-        localStorage.setItem("token", response.data.token);
-        localStorage.setItem("user", JSON.stringify(response.data.user));
-        alert("Sign up successfull");
-        navigate("/settings");
-      }
+      const response = await api.post("/auth/signup", { name, email, password });
+      login(response.data.token, response.data.user);
+      navigate("/settings");
     } catch (err) {
-      setError("sign up failed, email may already be in use");
+      setError(
+        err.response?.status === 409
+          ? "That email is already in use."
+          : "Sign up failed. Please try again."
+      );
     }
   };
   return (
@@ -120,9 +113,9 @@ const SignUp = () => {
 
         <p className="mt-4 text-sm">
           Back to login?{" "}
-          <a href="/" className="text-blue-600 font-semibold underline">
+          <Link to="/login" className="text-blue-600 font-semibold underline">
             Go Back
-          </a>
+          </Link>
         </p>
       </div>
     </div>

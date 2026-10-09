@@ -9,8 +9,9 @@ const MealCard = ({
 }) => {
   const navigate = useNavigate();
 
-  const caloriePercentage = (caloriesConsumed / caloriesNeeded) * 100;
-  const mealPercentage = (mealsConsumed / mealsNeeded) * 100;
+  const percentOf = (value, goal) => (goal > 0 ? (value / goal) * 100 : 0);
+  const caloriePercentage = percentOf(caloriesConsumed, caloriesNeeded);
+  const mealPercentage = percentOf(mealsConsumed, mealsNeeded);
 
   const handleAddMealClick = () => {
     navigate("/add-a-meal"); 
@@ -27,7 +28,7 @@ const MealCard = ({
         </div>
         <div className="relative w-28 h-28 mx-auto mb-2">
           <Circle
-            percent={caloriePercentage}
+            percent={Math.min(caloriePercentage, 100)}
             strokeWidth={12}  
             strokeColor="#10b981" 
             trailColor="#d1fae5"
@@ -46,7 +47,7 @@ const MealCard = ({
         </div>
         <div className="relative w-28 h-28 mx-auto mb-2">
           <Circle
-            percent={mealPercentage}
+            percent={Math.min(mealPercentage, 100)}
             strokeWidth={12}  
             strokeColor="#34d399"  
             trailColor="#d1fae5"
@@ -59,12 +60,14 @@ const MealCard = ({
       </div>
 
       {/* Add Meal Button */}
-      <div
+      <button
+        type="button"
+        aria-label="Add a meal"
         className="absolute bottom-4 right-4 bg-white p-2 rounded-full shadow-md cursor-pointer"
         onClick={handleAddMealClick}
       >
         <span className="text-lg text-green-500 font-semibold">+</span>
-      </div>
+      </button>
     </div>
   );
 };

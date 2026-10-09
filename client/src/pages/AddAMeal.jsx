@@ -1,40 +1,25 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import SyncLife from "../assets/images/SyncLife.png";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import api from "../api";
 
 const AddAMeal = () => {
-  const token = localStorage.getItem("token");
   const [ingredientInput, setIngredientInput] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [mealIngredients, setMealIngredients] = useState([]);
   const [totalCalories, setTotalCalories] = useState(0);
-  const [weight, setWeight] = useState();
+  const [weight, setWeight] = useState(100);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState(""); // State for success message
-  const apiKey = import.meta.env.VITE_SPOONACULAR_KEY;
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!token) {
-      console.log("token not available");
-      navigate("/login");
-      return;
-    }
-  }, [token, navigate]);
-
+  // Ingredient lookups go through our backend, which holds the Spoonacular key
   const searchIngredient = async () => {
+    setError("");
     try {
-      const response = await axios.get(
-        `https://api.spoonacular.com/food/ingredients/search`,
-        {
-          params: {
-            query: ingredientInput,
-            number: 5,
-            apiKey: apiKey,
-          },
-        }
-      );
+      const response = await api.get("/ingredients/search", {
+        params: { query: ingredientInput },
+      });
       setSearchResults(response.data.results);
     } catch (err) {
       console.error(err);
@@ -43,23 +28,15 @@ const AddAMeal = () => {
   };
 
   const addIngredientToMeal = async (ingredient) => {
+    setError("");
     try {
-      const response = await axios.get(
-        `https://api.spoonacular.com/food/ingredients/${ingredient.id}/information`,
-        {
-          params: {
-            amount: weight, // User-provided weight
-            unit: "g",
-            apiKey: apiKey,
-          },
-        }
-      );
+      const response = await api.get(`/ingredients/${ingredient.id}/calories`, {
+        params: { grams: weight || 100 },
+      });
 
       const ingredientWithCalories = {
         name: ingredient.name,
-        calories:
-          response.data.nutrition.nutrients.find((n) => n.name === "Calories")
-            ?.amount || 0,
+        calories: response.data.calories,
       };
 
       setMealIngredients((prev) => [...prev, ingredientWithCalories]);
@@ -74,30 +51,18 @@ const AddAMeal = () => {
   };
 
   const handleMeal = async () => {
+    if (mealIngredients.length === 0) {
+      setError("Add at least one ingredient first.");
+      return;
+    }
+    setError("");
     try {
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        console.error("No token found!");
-        navigate("/login");
-        return;
-      }
-
-      const response = await axios.post(
-        "http://localhost:5001/meals/add",
-        {
-          total_calories: totalCalories,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (response.status === 200) {
-        setSuccessMessage("Meal added successfully!"); // Set success message
-        setTimeout(() => setSuccessMessage(""), 3000); // Clear the message after 3 seconds
-      }
+      await api.post("/meals/add", { total_calories: totalCalories });
+      // Clear the meal so pressing "Add Meal" again doesn't log it twice
+      setMealIngredients([]);
+      setTotalCalories(0);
+      setSuccessMessage("Meal added successfully!");
+      setTimeout(() => setSuccessMessage(""), 3000); // Clear the message after 3 seconds
     } catch (err) {
       console.error("Could not add meal:", err);
       setError("Failed to add meal.");

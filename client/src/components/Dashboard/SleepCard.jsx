@@ -87,12 +87,14 @@ const SleepCard = ({ bedtime = '22:00', wakeupTime = '06:30' }) => {
       </div>
 
       {/* Add Sleep Button */}
-      <div
+      <button
+        type="button"
+        aria-label="Add sleep"
         className="absolute bottom-4 right-4 bg-white p-2 rounded-full shadow-md cursor-pointer"
         onClick={handleAddSleepClick}
       >
         <span className="text-lg text-blue-500 font-semibold">+</span>
-      </div>
+      </button>
     </div>
   );
 };

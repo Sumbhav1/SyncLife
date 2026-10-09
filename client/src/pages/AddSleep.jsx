@@ -1,52 +1,26 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import SyncLife from "../assets/images/SyncLife.png";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../api";
 
 const AddASleep = () => {
-  const token = localStorage.getItem("token");
   const [bedtime, setBedtime] = useState("");
   const [wakeuptime, setWakeuptime] = useState("");
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState(""); // Success message state
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!token) {
-      console.log("token not available");
-      navigate("/login");
+  const handleSleep = async () => {
+    setError("");
+    setSuccessMessage("");
+    if (!bedtime || !wakeuptime) {
+      setError("Enter both a bedtime and a wake-up time.");
       return;
     }
-  }, [token, navigate]);
-
-  const handleSleep = async () => {
     try {
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        console.error("No token found!");
-        navigate("/login");
-        return;
-      }
-      setError("");
-      setSuccessMessage("");
-
-      const response = await axios.post(
-        "http://localhost:5001/sleep/add", 
-        {
-          bedtime,
-          wakeuptime,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (response.status === 200) {
-        setSuccessMessage("Sleep record added successfully!");
-        setTimeout(() => setSuccessMessage(""), 6000); 
-      }
+      const response = await api.post("/sleep/add", { bedtime, wakeuptime });
+      setSuccessMessage(`Sleep record added: ${response.data.sleep_hours} hours.`);
+      setTimeout(() => setSuccessMessage(""), 6000);
     } catch (err) {
       console.error("Could not add sleep record:", err);
       setError("Failed to add sleep record.");

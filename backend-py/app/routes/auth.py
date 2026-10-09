@@ -1,84 +1,38 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify
 from ..models.user import User
-import bcrypt
-import jwt
-from datetime import timedelta, datetime 
-from ..config import Config 
+from ..utils import json_body, make_token, require_fields
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    data = request.get_json()
-    email = data.get("email")
-    password = data.get("password")
+    data = json_body()
+    require_fields(data, "email", "password")
 
-    user = User().find_by_email(email)
+    user = User.find_by_email(data["email"])
+    # Same response for unknown email and wrong password, so emails can't be probed
+    if user is None or not user.check_password(data["password"]):
+        return jsonify({"message": "Invalid email or password"}), 401
 
-    if user:
-        # Compare the entered password with the stored hashed password
-        if bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
-            JWT_SECRET = Config.JWT_SECRET
-            # Generate JWT token
-            payload = {
-                'id': user.id,
-                'name': user.name,
-                'email': user.email,
-                'settings_finished': user.settings_finished,
-                'exp': datetime.now() + timedelta(hours=1)  # Token expiration (1 hour)
-            }
-            
-            # Create JWT token
-            token = jwt.encode(payload, JWT_SECRET, algorithm='HS256')
+    return jsonify({
+        "message": "Login successful",
+        "token": make_token(user),
+        "user": user.to_public_dict()
+    }), 200
 
-            return jsonify({
-                "message": "Login successful",
-                "token": token,  # Send token for session verification
-                "user": {
-                    "id": user.id,
-                    "name": user.name,
-                    "email": user.email,
-                    "settings_finished": user.settings_finished
-                }
-            }), 200
-        else:
-            return jsonify({"message": "Invalid password"}), 400
-    else:
-        return jsonify({"message": "Email not found"}), 400
-    
+
 @auth_bp.route('/signup', methods=['POST'])
 def signup():
-    data = request.get_json()
-    email = data.get("email")
-    name = data.get("name")
-    password = data.get("password")
+    data = json_body()
+    require_fields(data, "name", "email", "password")
 
-    user = User().signupUser(name, email, password)
+    user = User.create(data["name"], data["email"], data["password"])
+    if user is None:
+        return jsonify({"message": "Email already in use"}), 409
 
-    if user:
-        JWT_SECRET = Config.JWT_SECRET
-        payload = {
-                'id': user.id,
-                'name': user.name,
-                'email': user.email,
-                'settings_finished': user.settings_finished,
-                'exp': datetime.now() + timedelta(hours=1)  # Token expiration (1 hour)
-            }
-        token = jwt.encode(payload, JWT_SECRET, algorithm='HS256')
-        return jsonify({
-                "message": "Sign-up successful",
-                "token": token,  # Send token for session verification
-                "user": {
-                    "id": user.id,
-                    "name": user.name,
-                    "email": user.email,
-                    "settings_finished": user.settings_finished
-                }
-            }), 201
-    else:
-     return jsonify({"message": "Error during sign-up, email may already be in use"}), 400
-    
-            
-
-
-
+    return jsonify({
+        "message": "Sign-up successful",
+        "token": make_token(user),
+        "user": user.to_public_dict()
+    }), 201

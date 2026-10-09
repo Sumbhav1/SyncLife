@@ -1,89 +1,34 @@
-from flask import Blueprint, request, jsonify
-from ..db import Database 
-from ..models.user import User
-from ..utils import get_user_email_from_token
+from flask import Blueprint, g, jsonify
+from ..utils import json_body, parse_number, parse_time, require_auth, require_fields
 
 settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 
+
 @settings_bp.route("/fetch", methods=["GET"])
+@require_auth
 def fetch_settings():
-    try:
-        token = request.headers.get("Authorization", "").split(" ")[1]  # "Bearer <token>"
-        print(f"[FETCH] Token received: {token}")
-        email = get_user_email_from_token(token)
-        print(f"[FETCH] Email extracted: {email}")
-    except Exception as e:
-        print(f"[FETCH] Error extracting email from token: {e}")
-        return jsonify({"error": str(e)}), 401
+    settings = g.user.get_settings()
+    if settings is None:
+        return jsonify({"error": "No settings saved yet"}), 404
+    return jsonify(settings), 200
 
-    user = User().find_by_email(email)
-    print(f"[FETCH] User found: {user is not None}")
-
-    if user:
-        settings = user.getSettings()
-        print(f"[FETCH] Settings retrieved: {settings}")
-        if settings:
-            return jsonify(settings)
-        else:
-            print(f"[FETCH] No settings found for user")
-            return jsonify({"error": "error fetching settings"}), 404
 
 @settings_bp.route('/set', methods=["POST"])
+@require_auth
 def set_settings():
-    data = request.get_json()
-    print(f"[SET] Data received: {data}")
+    data = json_body()
+    require_fields(data, "calories", "bedtime", "wakeupTime", "sleep", "meals")
 
-    try:
-        token = request.headers.get("Authorization", "").split(" ")[1]
-        print(f"[SET] Token received: {token}")
-        email = get_user_email_from_token(token)
-        print(f"[SET] Email extracted: {email}")
-    except Exception as e:
-        print(f"[SET] Error extracting email from token: {e}")
-        return jsonify({"error": str(e)}), 401
-
-    calories = data.get("calories")
-    bedtime = data.get("bedtime")
-    wakeupTime = data.get("wakeupTime")
-    sleep = data.get("sleep")
-    meals = data.get("meals")
-    notificationsSleep = data.get("notificationsSleep")
-    notificationsMeals = data.get("notificationsMeals")
-
-    print(f"[SET] Parsed values - Calories: {calories}, Bedtime: {bedtime}, WakeupTime: {wakeupTime}, Sleep: {sleep}, Meals: {meals}, NotificationsSleep: {notificationsSleep}, NotificationsMeals: {notificationsMeals}")
-
-    user = User().find_by_email(email)
-    print(f"[SET] User found: {user is not None}")
-
-    if user:
-        updatedUser = user.setSettings(  
-            calories, meals, sleep, bedtime, wakeupTime, notificationsMeals, notificationsSleep
-        )
-        print(f"[SET] Settings update status: {'Success' if updatedUser else 'Failure'}")
-
-        if updatedUser:
-            return jsonify({
-                "message": "Settings saved successfully",
-                "user": updatedUser  
-            }), 200  
-        else:
-            return jsonify({
-                "message": "Error saving settings"
-            }), 500
-    else:
-        print(f"[SET] User not found with email: {email}")
-        return jsonify({
-            "message": "User not found"
-        }), 404
-
-    
-
-    
-
-        
-
-    
-    
-        
-
-    
+    g.user.save_settings(
+        calories=parse_number(data["calories"], "calories", 1, 20000, integer=True),
+        meals=parse_number(data["meals"], "meals", 1, 20, integer=True),
+        sleep=parse_number(data["sleep"], "sleep", 0, 24),
+        bedtime=parse_time(data["bedtime"], "bedtime"),
+        wakeup_time=parse_time(data["wakeupTime"], "wakeupTime"),
+        notifications_meals=bool(data.get("notificationsMeals")),
+        notifications_sleep=bool(data.get("notificationsSleep"))
+    )
+    return jsonify({
+        "message": "Settings saved successfully",
+        "user": g.user.to_public_dict()
+    }), 200

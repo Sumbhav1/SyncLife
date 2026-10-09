@@ -20,7 +20,7 @@ const CalorieGraph = ({ data }) => {
   return (
     <div className="bg-white rounded-xl p-6 shadow-inner w-full max-w-xs">
       <h2 className="text-lg  font-bold mb-4 text-center">
-        Calorie Intake (Past 7 Days)
+        Calorie Intake (Past 5 Days)
       </h2>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={graphData}>

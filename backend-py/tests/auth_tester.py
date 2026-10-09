@@ -52,4 +52,4 @@ if __name__ == "__main__":
     api.test_signup(test_name, test_email, test_password)
 
     print("Testing Login:")
-    api.test_login(test_email, test_password)
+    api.test_login("Test10@gmail.com", 'FakePass1!')

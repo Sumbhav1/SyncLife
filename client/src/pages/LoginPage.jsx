@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import SyncLife from "../assets/images/SyncLife.png";
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../api";
+import { useAuth } from "../components/AuthContext";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -9,6 +10,7 @@ const LoginPage = () => {
   const [error, setError] = useState(""); 
   const [loading, setLoading] = useState(false); 
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -17,32 +19,11 @@ const LoginPage = () => {
     setLoading(true); 
 
     try {
-      const response = await axios.post("http://localhost:5001/auth/login", {
-        email: email,
-        password: password,
-      });
-      console.log(response.data)
-
-      if (response.status === 200) {
-        console.log("Login successful");
-        const user = response.data.user;
-
-        alert(response.data.message) // test line, should actually redirect to dashboard
-        localStorage.setItem("user", JSON.stringify(response.data.user)); 
-        localStorage.setItem("token", response.data.token); //session token
-
-        setTimeout(() => {
-          if (user.settings_finished){
-            navigate('/dashboard');
-          }else {
-            navigate('/settings');
-          };
-        }, 100); 
-        
-      } else {
-        setError("Unexpected error occurred. Please try again.");
-      }
-    } catch (err) {
+      const response = await api.post("/auth/login", { email, password });
+      const { token, user } = response.data;
+      login(token, user);
+      navigate(user.settings_finished ? "/dashboard" : "/settings");
+    } catch {
       setError("Invalid email or password."); 
     } finally {
       setLoading(false); 
@@ -93,9 +74,9 @@ const LoginPage = () => {
 
         <p className="mt-4 text-sm">
           New user?{" "}
-          <a href="/sign-up" className="text-blue-600 font-semibold underline">
+          <Link to="/sign-up" className="text-blue-600 font-semibold underline">
             Sign up here
-          </a>
+          </Link>
         </p>
       </div>
     </div>

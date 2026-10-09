@@ -1,14 +1,13 @@
-import React, { useContext, useEffect, useState } from "react";
-import { AuthContext } from "../components/AuthContext";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../api";
+import { useAuth } from "../components/AuthContext";
 
 import SyncLife from "../assets/images/SyncLife.png";
-import SleepCard from "../components/Dashboard/sleepCard";
+import SleepCard from "../components/Dashboard/SleepCard";
 import MealCard from "../components/Dashboard/MealCard";
 import CombinedStreakBadge from "../components/Dashboard/Streak";
 import MoodSelector from "../components/Dashboard/MoodSelector";
-import CalorieGraph from "../components/Dashboard/CalorieGraph";
 import SleepVsCalories from "../components/Dashboard/Correlation";
 
 function getGreeting(name) {
@@ -21,53 +20,24 @@ function getGreeting(name) {
 }
 
 const Dashboard = () => {
-  const { user } = useContext(AuthContext);
-  const token = localStorage.getItem("token");
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState("");
-  const [wakeupTime, setWakeupTime] = useState("");
-  const [bedTime, setBedTime] = useState("");
-  const [caloriesNeeded, setCaloriesNeeded] = useState("");
-  const [mealsNeeded, setMealsNeeded] = useState("");
-  const [mood, setMood] = useState("");
-  const [caloriesConsumed, setCaloriesConsumed] = useState("");
-  const [mealsConsumed, setMealsConsumed] = useState("");
-  const [streak, setStreak] = useState(0);
-  const [greeting] = useState(getGreeting(user.name));
-  const [recentLogs, setRecentLogs] = useState([]);
-
+  const [data, setData] = useState(null);
+  const [mood, setMood] = useState(null);
 
   useEffect(() => {
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-    const fetchDashboardData = async () => {
-      try {
-        const response = await axios.get(
-          "http://localhost:5001/dashboard/fetch",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        const { settings, dailyLog, recentLogs } = response.data.payload;
-        console.log("settings from server:", settings);
-        setWakeupTime(settings.wakeupTime);
-        setBedTime(settings.bedtime);
-        setCaloriesNeeded(settings.caloriesNeeded);
-        setMealsNeeded(settings.mealsNeeded);
-        setCaloriesConsumed(dailyLog.total_calories);
-        setMealsConsumed(dailyLog.meals_count);
-        setStreak(dailyLog.streak);
-        setMood(dailyLog.mood);
-        setRecentLogs(recentLogs);
-      } catch (err) {
+    api
+      .get("/dashboard/fetch")
+      .then((response) => {
+        setData(response.data.payload);
+        setMood(response.data.payload.dailyLog.mood);
+      })
+      .catch((err) => {
         console.error(err);
         setError("Couldn't fetch data: " + err.message);
-      }
-    };
-    fetchDashboardData();
-  }, [token, navigate]);
+      });
+  }, []);
 
   return (
     <>
@@ -76,7 +46,7 @@ const Dashboard = () => {
         <div className="flex items-center">
           <img src={SyncLife} alt="SyncLife logo" className="h-10 w-10 mr-4" />
           <div>
-            <h1 className="text-lg font-semibold">{greeting}</h1>
+            <h1 className="text-lg font-semibold">{getGreeting(user.name)}</h1>
             <p className="text-sm opacity-90">
               Here's your progress for the day.
             </p>
@@ -90,42 +60,45 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {/* First row of cards */}
-      <div className="flex flex-wrap justify-start items-start p-4 gap-4">
-        <div className="flex-1 min-w-[240px]">
-          <SleepCard bedtime={bedTime} wakeupTime={wakeupTime} />
-        </div>
-        <div className="flex-1 min-w-[240px]">
-          <MealCard
-            mealsConsumed={mealsConsumed}
-            mealsNeeded={mealsNeeded}
-            caloriesConsumed={caloriesConsumed}
-            caloriesNeeded={caloriesNeeded}
-          />
-        </div>
-        <div className="flex-none">
-          <CombinedStreakBadge days={streak} />
-        </div>
-        <div className="flex-1 min-w-[240px]">
-          <MoodSelector initialMood={mood} email={user.email} />
-        </div>
-      </div>
-
-      {/* Graph below the first row */}
-      {recentLogs.length > 0 && (
-        <div className="px-4 pt-6 pl-6">
-          <CalorieGraph data={recentLogs} />
-        </div>
-      )}
-
-      {recentLogs.length > 0 && (
-        <div className="px-4 pt-6">
-          <SleepVsCalories data={recentLogs} />
-        </div>
-      )}
-
       {/* Error message */}
-      {error && <p className="text-red-500 text-center font-medium">{error}</p>}
+      {error && <p className="text-red-500 text-center font-medium mt-4">{error}</p>}
+
+      {!data && !error && <p className="text-center mt-8">Loading...</p>}
+
+      {data && (
+        <>
+          {/* First row of cards */}
+          <div className="flex flex-wrap justify-start items-start p-4 gap-4">
+            <div className="flex-1 min-w-[240px]">
+              <SleepCard
+                bedtime={data.settings.bedtime}
+                wakeupTime={data.settings.wakeupTime}
+              />
+            </div>
+            <div className="flex-1 min-w-[240px]">
+              <MealCard
+                mealsConsumed={data.dailyLog.meals_count}
+                mealsNeeded={data.settings.mealsNeeded}
+                caloriesConsumed={data.dailyLog.total_calories}
+                caloriesNeeded={data.settings.caloriesNeeded}
+              />
+            </div>
+            <div className="flex-none">
+              <CombinedStreakBadge days={data.dailyLog.streak} />
+            </div>
+            <div className="flex-1 min-w-[240px]">
+              <MoodSelector mood={mood} onMoodChange={setMood} />
+            </div>
+          </div>
+
+          {/* Graph below the first row */}
+          {data.recentLogs.length > 0 && (
+            <div className="px-4 pt-6 pl-6">
+              <SleepVsCalories data={[...data.recentLogs].reverse()} />
+            </div>
+          )}
+        </>
+      )}
     </>
   );
 };
