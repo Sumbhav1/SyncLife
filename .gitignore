@@ -24,4 +24,12 @@ dist-ssr
 *.sw?
 
 .env
-venv/
+backend-py/venv/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Vite cache
+.vite/

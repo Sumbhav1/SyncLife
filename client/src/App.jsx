@@ -5,6 +5,8 @@ import SignUp from './pages/SignUp';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import AddAMeal from './pages/AddAMeal';
+import AddSleep from './pages/AddSleep';
+import SettingsLoggedIn from './pages/SettingsLoggedIn';
 
 function App() {
   return (
@@ -23,6 +25,8 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/add-a-meal" element={<AddAMeal />} />
+          <Route path="/add-sleep" element={<AddSleep />} />
+          <Route path="/settings-logged-in"element={<SettingsLoggedIn />} />
         </Route>
       </Routes>
     </Router>
@@ -30,5 +34,6 @@ function App() {
 }
 
 export default App;
+
 
 
